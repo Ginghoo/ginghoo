@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>健康风险分析</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg-color: #ffffff;
+            --char-area-height: 60vh;
+            --text-color: #333;
+            --subtext-color: #888;
+            --line-color: #ccc;
+            /* 风险等级颜色变量 */
+            --risk-color-low: #5a9aed;
+            --risk-color-medium: #f4b400;
+            --risk-color-high: #f28b26;
+            --risk-color-very-high: #e15454;
+            --transition-duration: 0.4s;
+            --transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+            background-color: var(--bg-color);
+        }
+
+        .screen-container {
+            width: 100vw;
+        }
+        
+        .screen-container.modal-is-open .main-content {
+            filter: blur(4px);
+            transition: filter 0.3s;
+        }
+        .main-content {
+            transition: filter 0.3s;
+        }
+
+        .character-area {
+            height: var(--char-area-height);
+            min-height: 450px;
+            width: 100%;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        
+        .character-display {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tags-column {
+            flex: 1;
+            height: 100%;
+            padding: 0 10px;
+            position: relative; 
+        }
+        
+        .character-model {
+            position: relative;
+            width: 33.33%;
+            max-width: 200px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .character-img {
+            max-width: 155%;
+            max-height: 155%;
+            height: auto;
+            object-fit: contain;
+            z-index: 20;
+        }
+
+        @keyframes pulse-1 { 0% { box-shadow: 0 0 0 0 rgba(90, 154, 237, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(90, 154, 237, 0); } 100% { box-shadow: 0 0 0 0 rgba(90, 154, 237, 0); } }
+        @keyframes pulse-2 { 0% { box-shadow: 0 0 0 0 rgba(244, 180, 0, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(244, 180, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(244, 180, 0, 0); } }
+        @keyframes pulse-3 { 0% { box-shadow: 0 0 0 0 rgba(242, 139, 38, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(242, 139, 38, 0); } 100% { box-shadow: 0 0 0 0 rgba(242, 139, 38, 0); } }
+        @keyframes pulse-4 { 0% { box-shadow: 0 0 0 0 rgba(225, 84, 84, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(225, 84, 84, 0); } 100% { box-shadow: 0 0 0 0 rgba(225, 84, 84, 0); } }
+
+        .anchor-point {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            z-index: 30;
+            display: none; 
+            transform: translate(-50%, -50%);
+            animation-duration: 2s;
+            animation-iteration-count: infinite;
+            animation-timing-function: cubic-bezier(0.66, 0, 0, 1);
+        }
+        
+        .anchor-point.risk-level-1 { background-color: var(--risk-color-low); animation-name: pulse-1; }
+        .anchor-point.risk-level-2 { background-color: var(--risk-color-medium); animation-name: pulse-2; }
+        .anchor-point.risk-level-3 { background-color: var(--risk-color-high); animation-name: pulse-3; }
+        .anchor-point.risk-level-4 { background-color: var(--risk-color-very-high); animation-name: pulse-4; }
+
+        @keyframes tag-appear {
+            from {
+                opacity: 0;
+                transform: translate(var(--start-offset-x), var(--start-offset-y)) scale(0.5);
+            }
+            to {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+        }
+
+        .disease-tag {
+            width: 90px;
+            height: 45px;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 5px 10px;
+            box-sizing: border-box;
+            z-index: 50;
+            text-align: center;
+            position: absolute;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            opacity: 0; 
+        }
+        
+        .disease-tag.is-appearing {
+            animation: tag-appear 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+        
+        .disease-tag.is-clickable:hover {
+            cursor: pointer;
+            transform: scale(1.05);
+        }
+        
+        .tags-column.left .disease-tag { right: 10px; border-right: 4px solid transparent; }
+        .tags-column.right .disease-tag { left: 10px; border-left: 4px solid transparent; }
+        
+        .tags-column.left .risk-level-1 { border-right-color: var(--risk-color-low); }
+        .tags-column.left .risk-level-2 { border-right-color: var(--risk-color-medium); }
+        .tags-column.left .risk-level-3 { border-right-color: var(--risk-color-high); }
+        .tags-column.left .risk-level-4 { border-right-color: var(--risk-color-very-high); }
+        
+        .tags-column.right .risk-level-1 { border-left-color: var(--risk-color-low); }
+        .tags-column.right .risk-level-2 { border-left-color: var(--risk-color-medium); }
+        .tags-column.right .risk-level-3 { border-left-color: var(--risk-color-high); }
+        .tags-column.right .risk-level-4 { border-left-color: var(--risk-color-very-high); }
+
+        .disease-tag .name { font-size: 14px; font-weight: 500; color: var(--text-color); }
+        .disease-tag .risk { font-size: 11px; color: var(--subtext-color); }
+        .risk-level-1 .risk { color: var(--risk-color-low); }
+        .risk-level-2 .risk { color: var(--risk-color-medium); }
+        .risk-level-3 .risk { color: var(--risk-color-high); }
+        .risk-level-4 .risk { color: var(--risk-color-very-high); }
+
+        .lines-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 40; }
+        .lines-container path {
+            fill: none;
+            stroke-width: 1.5;
+            stroke-dasharray: 4 4;
+            opacity: 0;
+        }
+        .lines-container path.is-appearing {
+            animation: line-appear 0.3s ease-out forwards;
+        }
+        .lines-container .risk-level-1 { stroke: var(--risk-color-low); }
+        .lines-container .risk-level-2 { stroke: var(--risk-color-medium); }
+        .lines-container .risk-level-3 { stroke: var(--risk-color-high); }
+        .lines-container .risk-level-4 { stroke: var(--risk-color-very-high); }
+        
+        @keyframes line-appear {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .top-tabs { 
+            position: sticky;
+            top: 0;
+            display: flex; 
+            justify-content: center; 
+            padding: 15px; 
+            gap: 20px; 
+            z-index: 70; 
+            background-color: var(--bg-color);
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .top-tabs button { padding: 6px 14px; border: none; background: transparent; font-size: 16px; color: var(--subtext-color); cursor: pointer; transition: color 0.3s, font-weight 0.3s; }
+        .top-tabs button.active { color: var(--text-color); font-weight: 600; }
+        
+        .content-wrapper {
+            padding: 24px 16px 32px 16px;
+            position: relative;
+            z-index: 15;
+        }
+        .content-card {
+            background: var(--card-bg-color);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        .card-subtitle {
+            font-size: 12px;
+            color: #aaa;
+        }
+        .card-body p {
+            font-size: 14px;
+            line-height: 1.7;
+            color: #555;
+            margin: 0;
+        }
+        
+        /* ✨ 修改：指标列表项的样式 */
+        .indicator-list .indicator-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .indicator-list .indicator-item:last-child {
+            border-bottom: none;
+        }
+        .indicator-main-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .indicator-main-line .label { font-size: 14px; color: var(--text-color); }
+        .indicator-main-line .value { font-size: 16px; font-weight: 500; color: var(--text-color); }
+        .indicator-sub-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--subtext-color);
+        }
+        .indicator-main-line .value.risk-level-3 { color: var(--risk-color-high); }
+        .indicator-main-line .value.risk-level-4 { color: var(--risk-color-very-high); }
+
+        .expand-button {
+            text-align: center;
+            padding-top: 16px;
+            font-size: 14px;
+            color: var(--subtext-color);
+            cursor: pointer;
+        }
+        .expand-button::after {
+            content: ' ⌄';
+            display: inline-block;
+            transition: transform 0.3s;
+        }
+        .is-expanded .expand-button::after {
+            transform: rotate(180deg);
+        }
+        .indicator-list.collapsed .indicator-item:nth-child(n+5) {
+            display: none;
+        }
+
+        .suggestion-section {
+            margin-top: 20px;
+        }
+        .suggestion-section h4 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+        }
+
+
+        .modal-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .modal-overlay {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0);
+            transition: background-color var(--transition-duration);
+        }
+        .modal-container.is-open .modal-overlay {
+            pointer-events: auto;
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        .modal-content {
+            background: #fff;
+            border-radius: 16px;
+            padding: 24px;
+            width: 80%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.5);
+            transition: transform var(--transition-duration) var(--transition-timing), opacity var(--transition-duration) var(--transition-timing), visibility var(--transition-duration);
+        }
+        .modal-content.is-open {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+        }
+
+        .modal-body {
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out 0.1s;
+        }
+        .modal-content.is-open .modal-body {
+            opacity: 1;
+        }
+
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .modal-header h2 { margin: 0; font-size: 22px; }
+        .modal-close-btn { background: none; border: none; font-size: 28px; cursor: pointer; color: #aaa; padding: 0; line-height: 1; }
+        .modal-subtitle { font-size: 12px; color: #999; margin-bottom: 20px; }
+        .modal-body p { font-size: 14px; line-height: 1.7; color: #555; margin: 0 0 24px 0; }
+        .modal-indicators h3 { font-size: 14px; color: #333; margin: 0 0 12px 0; font-weight: 500; }
+        .modal-indicator-item { background: #f7f7f7; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .modal-indicator-item .label { font-size: 14px; color: #555; }
+        .modal-indicator-item .label span { display: block; font-size: 12px; color: #999; }
+        .modal-indicator-item .value { font-size: 16px; font-weight: 500; color: #333; }
+    </style>
+</head>
+<body>
+
+    <div class="screen-container">
+        <div class="main-content">
+            <div class="top-tabs">
+                <button class="tab-button active" data-count="8">王秀英</button>
+                <button class="tab-button" data-count="5">张小伟</button>
+                <button class="tab-button" data-count="3">张建国</button>
+                <button class="tab-button" data-count="1">李静</button>
+            </div>
+
+            <div class="character-area">
+                <svg class="lines-container"></svg>
+                <div class="character-display">
+                    <div class="tags-column left"></div>
+                    <div class="character-model">
+                        <img src="tagdemo/demo/character.png" alt="character" class="character-img">
+                        <div id="anchor-neck" class="anchor-point"></div>
+                        <div id="anchor-chest" class="anchor-point"></div>
+                        <div id="anchor-stomach" class="anchor-point"></div>
+                        <div id="anchor-liver" class="anchor-point"></div>
+                        <div id="anchor-legs" class="anchor-point"></div>
+                        <div id="anchor-knees" class="anchor-point"></div>
+                        <div id="anchor-feet" class="anchor-point"></div>
+                    </div>
+                    <div class="tags-column right"></div>
+                </div>
+            </div>
+
+            <div class="content-wrapper">
+                <div class="content-card">
+                    <div class="card-header">
+                        <h3 class="card-title">✦ AI分析</h3>
+                    </div>
+                    <div class="card-body">
+                        <p>根据您的健康分析，当前需要您重点关注的核心指标包括血压、血脂（尤其是"坏胆固醇"）、血糖、体重指数(BMI)及血尿酸，这些数值均已超出正常范围。这些异常指标共同指向您已存在多种高风险疾病，具体表现为高血压、高血脂、糖尿病、肥胖症、脂肪肝及痛风。这些看似独立的疾病，实际上是相互关联的，共同构成了系统性的代谢紊乱，使您未来发生心脏病、中风等严重心脑血管事件的风险显著增加。</p>
+                        <div class="card-subtitle" style="text-align: right; margin-top: 16px;">内容由AI分析生成，仅供参考</div>
+                    </div>
+                </div>
+
+                <div class="content-card">
+                    <div class="card-header">
+                        <h3 class="card-title">异常指标 (共 8 项)</h3>
+                        <div class="card-subtitle">分析基于近1年数据</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="indicator-list collapsed">
+                            <!-- ✨ 修改：更新HTML结构 -->
+                            <div class="indicator-item">
+                                <div class="indicator-main-line">
+                                    <div class="label">总胆固醇 (TC)</div>
+                                    <div class="value risk-level-3">↑ 6.8 mmol/L</div>
+                                </div>
+                                <div class="indicator-sub-line">
+                                    <span>最新检查: 2025.06.10</span>
+                                    <span>参考值: 5.2 - 6.1</span>
+                                </div>
+                            </div>
+                            <div class="indicator-item">
+                                <div class="indicator-main-line">
+                                    <div class="label">甘油三酯 (TG)</div>
+                                    <div class="value risk-level-3">↑ 2.5 mmol/L</div>
+                                </div>
+                                <div class="indicator-sub-line">
+                                    <span>最新检查: 2025.06.10</span>
+                                    <span>参考值: 1.7 - 2.2</span>
+                                </div>
+                            </div>
+                            <div class="indicator-item">
+                                <div class="indicator-main-line">
+                                    <div class="label">低密度脂蛋白 (LDL-C)</div>
+                                    <div class="value risk-level-3">↑ 4.5 mmol/L</div>
+                                </div>
+                                <div class="indicator-sub-line">
+                                    <span>最新检查: 2025.06.10</span>
+                                    <span>参考值: 3.4 - 4.0</span>
+                                </div>
+                            </div>
+                            <div class="indicator-item">
+                                <div class="indicator-main-line">
+                                    <div class="label">高密度脂蛋白 (HDL-C)</div>
+                                    <div class="value risk-level-3">↓ 0.9 mmol/L</div>
+                                </div>
+                                <div class="indicator-sub-line">
+                                    <span>最新检查: 2025.06.10</span>
+                                    <span>参考值: > 1.0男 / > 1.3女</span>
+                                </div>
+                            </div>
+                            <div class="indicator-item">
+                                <div class="indicator-main-line">
+                                    <div class="label">血压</div>
+                                    <div class="value risk-level-4">↑ 150 / 98 mmHg</div>
+                                </div>
+                                <div class="indicator-sub-line">
+                                    <span>用户自测: 2025.06.10</span>
+                                    <span>参考值: 120 ~ 139 | 80 ~ 89</span>
+                                </div>
+                            </div>
+                             <div class="indicator-item">
+                                <div class="indicator-main-line">
+                                    <div class="label">BMI</div>
+                                    <div class="value risk-level-3">↑ 28 kg/m²</div>
+                                </div>
+                                <div class="indicator-sub-line">
+                                    <span>用户自测: 2025.06.10</span>
+                                    <span>参考值: 18.5 ~ 23.9</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="expand-button">更多</div>
+                    </div>
+                </div>
+
+                <div class="content-card">
+                    <div class="card-header">
+                        <h3 class="card-title">改善建议</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="suggestion-section">
+                            <h4>尽快就医</h4>
+                            <p>鉴于您的血压和血糖水平均已达到需要医学关注的水平，强烈建议您在1-2周内预约医生（内科或心血管科），对您的具体情况进行专业评估和诊断。</p>
+                        </div>
+                         <div class="suggestion-section">
+                            <h4>生活方式干预</h4>
+                            <p><strong>饮食调整:</strong> 立即开始减少高盐（如咸菜、加工食品）、高脂（如油炸食品、肥肉）和高糖（如含糖饮料、甜点）食物的摄入。增加蔬菜、全谷物和优质蛋白的比例。</p>
+                            <p><strong>规律运动:</strong> 从本周起，尝试每周进行至少150分钟的中等强度运动，如快走、慢跑或游泳。</p>
+                             <p><strong>体重管理:</strong> 控制体重是改善所有代谢指标的核心。通过健康饮食和规律运动，设定一个切实可行的减重目标。</p>
+                        </div>
+                         <div class="suggestion-section">
+                            <h4>定期随访监测</h4>
+                            <p>为了持续追踪您的健康状况并评估干预效果，我们建议您定期监测血压，在3-6个月后优先复查血脂四项及糖化血红蛋白(HbA1c)，以评估核心指标的改善情况。同时，可在6-12个月后跟进检查肝肾功能与尿酸。此外，由于您存在高血压和高血脂风险，建议每年进行一次眼底检查以预防并发症。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-container">
+            <div class="modal-overlay"></div>
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="modal-header">
+                        <h2 id="modal-title"></h2>
+                        <button class="modal-close-btn">&times;</button>
+                    </div>
+                    <p class="modal-subtitle" id="modal-subtitle"></p>
+                    <p id="modal-description"></p>
+                    <div class="modal-indicators">
+                        <h3 id="modal-indicators-title"></h3>
+                        <div id="modal-indicators-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        const allDiseases = [
+            { id: 'fattyLiver', name: '脂肪肝', risk: '高风险', riskLevel: 3, anchorId: 'liver' },
+            { id: 'dyslipidemia', name: '高血脂', risk: '中风险', riskLevel: 2, anchorId: 'chest' },
+            { id: 'myopia', name: '近视', risk: '低风险', riskLevel: 1, anchorId: 'head' },
+            { id: 'gout', name: '痛风', risk: '中风险', riskLevel: 2, anchorId: 'feet' },
+            { 
+                id: 'hypertension', 
+                name: '高血压', 
+                risk: '高风险', 
+                riskLevel: 3, 
+                anchorId: 'chest',
+                details: {
+                    title: '高血压',
+                    subtitle: '内容由 AI 生成，仅供参考',
+                    description: '您的血压读数 [145/95 mmHg] 已超出正常范围，达到了1级高血压的标准。这表明您的心脏泵血比正常情况更费力，血管长期承受着较大的压力。长期高血压是引发心脏病、中风、肾脏损伤和眼底病变的最主要风险因素之一。',
+                    indicatorsTitle: '异常指标：',
+                    indicators: [
+                        { label: '血压', ref: '120 ~ 139 | 80 ~ 89', value: '↑ 150 / 98 mmHg' },
+                        { label: 'BMI', ref: '18.5 ~ 23.9', value: '↑ 28 kg/m²' }
+                    ]
+                }
+            },
+            { id: 'diabetes', name: '糖尿病', risk: '高风险', riskLevel: 3, anchorId: 'stomach' },
+            { id: 'arthritis', name: '关节炎', risk: '低风险', riskLevel: 1, anchorId: 'knees' },
+            { id: 'cervicalSpon', name: '颈椎问题', risk: '中风险', riskLevel: 2, anchorId: 'neck' },
+            { id: 'varicoseVeins', name: '静脉曲张', risk: '低风险', riskLevel: 1, anchorId: 'legs' },
+            { id: 'insomnia', name: '失眠', risk: '中风险', riskLevel: 2, anchorId: 'head' },
+            { id: 'obesity', name: '肥胖症', risk: '高风险', riskLevel: 3, anchorId: 'stomach' },
+            { id: 'heartDisease', name: '心脏病', risk: '极高风险', riskLevel: 4, anchorId: 'chest' },
+        ];
+
+        const anchorPositions = {
+            'head': { top: '10%', left: '52%' }, 'neck': { top: '24%', left: '52%' },
+            'chest': { top: '32%', left: '56%' }, 'stomach': { top: '48%', left: '50%' },
+            'liver': { top: '40%', left: '40%' }, 'legs': { top: '65%', left: '54%' },
+            'knees': { top: '70%', left: '34%' }, 'feet': { top: '92%', left: '30%' },
+        };
+
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tagsContainerLeft = document.querySelector('.tags-column.left');
+        const tagsContainerRight = document.querySelector('.tags-column.right');
+        const linesContainer = document.querySelector('.lines-container');
+        const characterArea = document.querySelector('.character-area');
+        const allAnchorElements = document.querySelectorAll('.anchor-point');
+        const screenContainer = document.querySelector('.screen-container');
+        const modalContainer = document.querySelector('.modal-container');
+        const modalContent = document.querySelector('.modal-content');
+        const modalCloseBtn = document.querySelector('.modal-close-btn');
+        const expandButton = document.querySelector('.expand-button');
+        let activeTag = null;
+
+        function initializeAnchors() {
+            for (const id in anchorPositions) {
+                const anchorEl = document.getElementById(`anchor-${id}`);
+                if (anchorEl) {
+                    anchorEl.style.top = anchorPositions[id].top;
+                    anchorEl.style.left = anchorPositions[id].left;
+                }
+            }
+        }
+        
+        function updateDisplay(count) {
+            tagsContainerLeft.innerHTML = '';
+            tagsContainerRight.innerHTML = '';
+            linesContainer.innerHTML = '';
+
+            const tagsToShow = allDiseases.slice(0, count);
+
+            const anchorMaxRisk = {};
+            tagsToShow.forEach(tag => {
+                if (!anchorMaxRisk[tag.anchorId] || tag.riskLevel > anchorMaxRisk[tag.anchorId]) {
+                    anchorMaxRisk[tag.anchorId] = tag.riskLevel;
+                }
+            });
+            
+            const activeAnchorIds = new Set(tagsToShow.map(d => `anchor-${d.anchorId}`));
+            allAnchorElements.forEach(anchor => {
+                const anchorId = anchor.id.replace('anchor-', '');
+                if (activeAnchorIds.has(anchor.id)) {
+                    anchor.style.display = 'block';
+                    const maxRisk = anchorMaxRisk[anchorId];
+                    anchor.className = 'anchor-point';
+                    if (maxRisk) {
+                        anchor.classList.add(`risk-level-${maxRisk}`);
+                    }
+                } else {
+                    anchor.style.display = 'none';
+                }
+            });
+
+            const groupedByAnchor = tagsToShow.reduce((acc, tag) => {
+                (acc[tag.anchorId] = acc[tag.anchorId] || []).push(tag);
+                return acc;
+            }, {});
+
+            const sortedGroups = Object.values(groupedByAnchor).sort((a, b) => b.length - a.length);
+
+            const leftTagsData = [];
+            const rightTagsData = [];
+
+            sortedGroups.forEach(group => {
+                if (leftTagsData.length <= rightTagsData.length) {
+                    leftTagsData.push(...group);
+                } else {
+                    rightTagsData.push(...group);
+                }
+            });
+
+            placeTags(leftTagsData, tagsContainerLeft);
+            placeTags(rightTagsData, tagsContainerRight);
+            
+            drawConnectingLines();
+            triggerAnimations();
+        }
+
+        function placeTags(tagsData, container) {
+            const TAG_HEIGHT = 45;
+            const TAG_VERTICAL_GAP = 16;
+            const containerRect = container.getBoundingClientRect();
+            const placedRects = [];
+
+            tagsData.sort((a, b) => {
+                const topA = parseFloat(anchorPositions[a.anchorId].top);
+                const topB = parseFloat(anchorPositions[b.anchorId].top);
+
+                if (topA !== topB) {
+                    return topA - topB;
+                }
+
+                return b.riskLevel - a.riskLevel;
+            });
+            
+            tagsData.forEach(data => {
+                const anchorEl = document.getElementById(`anchor-${data.anchorId}`);
+                if (!anchorEl) return;
+
+                const anchorRect = anchorEl.getBoundingClientRect();
+                let idealTop = (anchorRect.top + anchorRect.height / 2) - (TAG_HEIGHT / 2) - containerRect.top;
+
+                let collision = true;
+                while(collision) {
+                    const currentRect = { top: idealTop, bottom: idealTop + TAG_HEIGHT };
+                    collision = placedRects.some(placed => 
+                        currentRect.top < (placed.bottom + TAG_VERTICAL_GAP) && currentRect.bottom > (placed.top - TAG_VERTICAL_GAP)
+                    );
+
+                    if (collision) {
+                        const collidingSet = placedRects.filter(placed => 
+                            currentRect.top < (placed.bottom + TAG_VERTICAL_GAP) && currentRect.bottom > (placed.top - TAG_VERTICAL_GAP)
+                        );
+                        const lowestPoint = Math.max(...collidingSet.map(r => r.bottom));
+                        idealTop = lowestPoint + TAG_VERTICAL_GAP;
+                    }
+                }
+                
+                const tagEl = createTagElement(data);
+                tagEl.style.top = `${idealTop}px`;
+                container.appendChild(tagEl);
+                placedRects.push({ top: idealTop, bottom: idealTop + TAG_HEIGHT });
+            });
+        }
+
+        function createTagElement(data) {
+            const tagEl = document.createElement('div');
+            tagEl.className = 'disease-tag';
+            if (data.riskLevel) {
+                tagEl.classList.add(`risk-level-${data.riskLevel}`);
+                tagEl.dataset.riskLevel = data.riskLevel;
+            }
+            tagEl.id = `tag-${data.id}`;
+            tagEl.dataset.anchorId = `anchor-${data.anchorId}`;
+            tagEl.innerHTML = `
+                <div class="name">${data.name}</div>
+                <div class="risk">${data.risk}</div>
+            `;
+            if (data.details) {
+                tagEl.classList.add('is-clickable');
+                tagEl.addEventListener('click', (e) => {
+                    openModal(data.details, e.currentTarget);
+                });
+            }
+            return tagEl;
+        }
+
+        function drawConnectingLines() {
+            linesContainer.innerHTML = '';
+            const allTags = document.querySelectorAll('.disease-tag');
+            const areaRect = characterArea.getBoundingClientRect();
+            const cornerRadius = 8;
+            const horizontalThreshold = 1;
+
+            allTags.forEach(tagEl => {
+                const anchorEl = document.getElementById(tagEl.dataset.anchorId);
+                if (!anchorEl) return;
+
+                const tagRect = tagEl.getBoundingClientRect();
+                const anchorRect = anchorEl.getBoundingClientRect();
+                
+                const p1 = {
+                    x: anchorRect.left + anchorRect.width / 2 - areaRect.left,
+                    y: anchorRect.top + anchorRect.height / 2 - areaRect.top
+                };
+
+                const isLeftColumn = tagEl.parentElement.classList.contains('left');
+                const p_end = {};
+                if (isLeftColumn) {
+                    p_end.x = tagRect.right - areaRect.left;
+                } else {
+                    p_end.x = tagRect.left - areaRect.left;
+                }
+                p_end.y = tagRect.top + tagRect.height / 2 - areaRect.top;
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                if (tagEl.dataset.riskLevel) {
+                    path.classList.add(`risk-level-${tagEl.dataset.riskLevel}`);
+                }
+                path.id = `line-for-${tagEl.id}`;
+                
+                let d = '';
+                if (Math.abs(p1.y - p_end.y) < horizontalThreshold) {
+                    d = `M ${p1.x},${p1.y} L ${p_end.x},${p_end.y}`;
+                } else {
+                    const signX = isLeftColumn ? -1 : 1;
+                    const signY = p_end.y > p1.y ? 1 : -1;
+                    const verticalLineX = (p1.x / 3) + (p_end.x * 2 / 3);
+                    const p2 = { x: verticalLineX, y: p1.y };
+                    const p3 = { x: verticalLineX, y: p_end.y };
+                    
+                    const sweepFlag1 = signX * signY > 0 ? 1 : 0;
+                    const sweepFlag2 = signX * signY > 0 ? 0 : 1;
+
+                    d = `M ${p1.x},${p1.y} ` +
+                        `L ${p2.x - cornerRadius * signX},${p2.y} ` +
+                        `A ${cornerRadius},${cornerRadius} 0 0 ${sweepFlag1} ${p2.x},${p2.y + cornerRadius * signY} ` +
+                        `L ${p3.x},${p3.y - cornerRadius * signY} ` +
+                        `A ${cornerRadius},${cornerRadius} 0 0 ${sweepFlag2} ${p3.x + cornerRadius * signX},${p3.y} ` +
+                        `L ${p_end.x},${p_end.y}`;
+                }
+                
+                path.setAttribute('d', d);
+                linesContainer.appendChild(path);
+            });
+        }
+
+        function triggerAnimations() {
+            const allTags = document.querySelectorAll('.disease-tag');
+            allTags.forEach((tagEl, index) => {
+                const anchorEl = document.getElementById(tagEl.dataset.anchorId);
+                const lineEl = document.getElementById(`line-for-${tagEl.id}`);
+                if (!anchorEl || !lineEl) return;
+
+                const tagRect = tagEl.getBoundingClientRect();
+                const anchorRect = anchorEl.getBoundingClientRect();
+
+                const anchorCenterX = anchorRect.left + anchorRect.width / 2;
+                const anchorCenterY = anchorRect.top + anchorRect.height / 2;
+                const tagCenterX = tagRect.left + tagRect.width / 2;
+                const tagCenterY = tagRect.top + tagRect.height / 2;
+
+                const offsetX = anchorCenterX - tagCenterX;
+                const offsetY = anchorCenterY - tagCenterY;
+
+                tagEl.style.setProperty('--start-offset-x', `${offsetX}px`);
+                tagEl.style.setProperty('--start-offset-y', `${offsetY}px`);
+
+                const delay = index * 0.08;
+                tagEl.style.animationDelay = `${delay}s`;
+                lineEl.style.animationDelay = `${delay + 0.1}s`;
+
+                tagEl.classList.add('is-appearing');
+                lineEl.classList.add('is-appearing');
+            });
+        }
+
+        function openModal(details, clickedTag) {
+            if (activeTag) return;
+            activeTag = clickedTag;
+            
+            document.getElementById('modal-title').textContent = details.title;
+            document.getElementById('modal-subtitle').textContent = details.subtitle;
+            document.getElementById('modal-description').textContent = details.description;
+            document.getElementById('modal-indicators-title').textContent = details.indicatorsTitle;
+            
+            const listEl = document.getElementById('modal-indicators-list');
+            listEl.innerHTML = '';
+            details.indicators.forEach(item => {
+                listEl.innerHTML += `
+                    <div class="modal-indicator-item">
+                        <div class="label">${item.label}<span>参考值: ${item.ref}</span></div>
+                        <div class="value">${item.value}</div>
+                    </div>
+                `;
+            });
+
+            const tagRect = clickedTag.getBoundingClientRect();
+            
+            modalContent.style.transformOrigin = `${tagRect.left + tagRect.width / 2}px ${tagRect.top + tagRect.height / 2}px`;
+            
+            clickedTag.style.opacity = 0;
+            
+            requestAnimationFrame(() => {
+                modalContainer.classList.add('is-open');
+                modalContent.classList.add('is-open');
+                screenContainer.classList.add('modal-is-open');
+            });
+        }
+
+        function closeModal() {
+            if (!activeTag) return;
+            
+            modalContent.classList.remove('is-open');
+            modalContainer.classList.remove('is-open');
+            screenContainer.classList.remove('modal-is-open');
+
+            modalContent.addEventListener('transitionend', () => {
+                if (!modalContainer.classList.contains('is-open')) {
+                    activeTag.style.opacity = 1;
+                    activeTag = null;
+                    modalContent.style.transformOrigin = 'center';
+                }
+            }, { once: true });
+        }
+
+        modalCloseBtn.addEventListener('click', closeModal);
+        modalContainer.querySelector('.modal-overlay').addEventListener('click', closeModal);
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                const count = parseInt(button.dataset.count, 10);
+                updateDisplay(count);
+            });
+        });
+
+        window.addEventListener('resize', () => {
+            const activeTab = document.querySelector('.tab-button.active');
+            if(activeTab) {
+                const count = parseInt(activeTab.dataset.count, 10);
+                updateDisplay(count);
+            }
+        });
+        
+        expandButton.addEventListener('click', () => {
+            const list = document.querySelector('.indicator-list');
+            list.classList.toggle('collapsed');
+            expandButton.textContent = list.classList.contains('collapsed') ? '更多' : '收起';
+        });
+
+        initializeAnchors();
+        document.querySelector('.tab-button.active').click();
+    });
+    </script>
+</body>
+</html>
