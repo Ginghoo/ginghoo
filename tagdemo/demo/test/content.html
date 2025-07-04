@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>健康风险分析内容</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg-color: #ffffff;
+            --text-color: #333;
+            --subtext-color: #888;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+            background-color: var(--bg-color);
+            overflow-y: auto;
+        }
+
+        .content-wrapper {
+            padding: 24px 16px 32px 16px;
+            position: relative;
+        }
+        
+        .content-card {
+            background: var(--card-bg-color);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        
+        .card-subtitle {
+            font-size: 12px;
+            color: #aaa;
+        }
+        
+        .card-body p {
+            font-size: 14px;
+            line-height: 1.7;
+            color: #555;
+            margin: 0;
+        }
+        
+        .indicator-list .indicator-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .indicator-list .indicator-item:last-child {
+            border-bottom: none;
+        }
+        
+        .indicator-main-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        
+        .indicator-main-line .label { 
+            font-size: 14px; 
+            color: var(--text-color); 
+        }
+        
+        .indicator-main-line .value { 
+            font-size: 16px; 
+            font-weight: 500; 
+            color: var(--text-color); 
+        }
+        
+        .indicator-sub-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--subtext-color);
+        }
+        
+        .indicator-main-line .value.risk-level-3 { 
+            color: #f28b26; 
+        }
+        
+        .indicator-main-line .value.risk-level-4 { 
+            color: #e15454; 
+        }
+
+        .expand-button {
+            text-align: center;
+            padding-top: 16px;
+            font-size: 14px;
+            color: var(--subtext-color);
+            cursor: pointer;
+        }
+        
+        .expand-button::after {
+            content: ' ⌄';
+            display: inline-block;
+            transition: transform 0.3s;
+        }
+        
+        .is-expanded .expand-button::after {
+            transform: rotate(180deg);
+        }
+        
+        .indicator-list.collapsed .indicator-item:nth-child(n+5) {
+            display: none;
+        }
+
+        .suggestion-section {
+            margin-top: 20px;
+        }
+        
+        .suggestion-section h4 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="content-wrapper">
+        <div class="content-card">
+            <div class="card-header">
+                <h3 class="card-title">✦ AI分析</h3>
+            </div>
+            <div class="card-body">
+                <p>根据您的健康分析，当前需要您重点关注的核心指标包括血压、血脂（尤其是"坏胆固醇"）、血糖、体重指数(BMI)及血尿酸，这些数值均已超出正常范围。这些异常指标共同指向您已存在多种高风险疾病，具体表现为高血压、高血脂、糖尿病、肥胖症、脂肪肝及痛风。这些看似独立的疾病，实际上是相互关联的，共同构成了系统性的代谢紊乱，使您未来发生心脏病、中风等严重心脑血管事件的风险显著增加。</p>
+                <div class="card-subtitle" style="text-align: right; margin-top: 16px;">内容由AI分析生成，仅供参考</div>
+            </div>
+        </div>
+
+        <div class="content-card">
+            <div class="card-header">
+                <h3 class="card-title">异常指标 (共 8 项)</h3>
+                <div class="card-subtitle">分析基于近1年数据</div>
+            </div>
+            <div class="card-body">
+                <div class="indicator-list collapsed">
+                    <div class="indicator-item">
+                        <div class="indicator-main-line">
+                            <div class="label">总胆固醇 (TC)</div>
+                            <div class="value risk-level-3">↑ 6.8 mmol/L</div>
+                        </div>
+                        <div class="indicator-sub-line">
+                            <span>最新检查: 2025.06.10</span>
+                            <span>参考值: 5.2 - 6.1</span>
+                        </div>
+                    </div>
+                    <div class="indicator-item">
+                        <div class="indicator-main-line">
+                            <div class="label">甘油三酯 (TG)</div>
+                            <div class="value risk-level-3">↑ 2.5 mmol/L</div>
+                        </div>
+                        <div class="indicator-sub-line">
+                            <span>最新检查: 2025.06.10</span>
+                            <span>参考值: 1.7 - 2.2</span>
+                        </div>
+                    </div>
+                    <div class="indicator-item">
+                        <div class="indicator-main-line">
+                            <div class="label">低密度脂蛋白 (LDL-C)</div>
+                            <div class="value risk-level-3">↑ 4.5 mmol/L</div>
+                        </div>
+                        <div class="indicator-sub-line">
+                            <span>最新检查: 2025.06.10</span>
+                            <span>参考值: 3.4 - 4.0</span>
+                        </div>
+                    </div>
+                    <div class="indicator-item">
+                        <div class="indicator-main-line">
+                            <div class="label">高密度脂蛋白 (HDL-C)</div>
+                            <div class="value risk-level-3">↓ 0.9 mmol/L</div>
+                        </div>
+                        <div class="indicator-sub-line">
+                            <span>最新检查: 2025.06.10</span>
+                            <span>参考值: > 1.0男 / > 1.3女</span>
+                        </div>
+                    </div>
+                    <div class="indicator-item">
+                        <div class="indicator-main-line">
+                            <div class="label">血压</div>
+                            <div class="value risk-level-4">↑ 150 / 98 mmHg</div>
+                        </div>
+                        <div class="indicator-sub-line">
+                            <span>用户自测: 2025.06.10</span>
+                            <span>参考值: 120 ~ 139 | 80 ~ 89</span>
+                        </div>
+                    </div>
+                     <div class="indicator-item">
+                        <div class="indicator-main-line">
+                            <div class="label">BMI</div>
+                            <div class="value risk-level-3">↑ 28 kg/m²</div>
+                        </div>
+                        <div class="indicator-sub-line">
+                            <span>用户自测: 2025.06.10</span>
+                            <span>参考值: 18.5 ~ 23.9</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="expand-button">更多</div>
+            </div>
+        </div>
+
+        <div class="content-card">
+            <div class="card-header">
+                <h3 class="card-title">改善建议</h3>
+            </div>
+            <div class="card-body">
+                <div class="suggestion-section">
+                    <h4>尽快就医</h4>
+                    <p>鉴于您的血压和血糖水平均已达到需要医学关注的水平，强烈建议您在1-2周内预约医生（内科或心血管科），对您的具体情况进行专业评估和诊断。</p>
+                </div>
+                 <div class="suggestion-section">
+                    <h4>生活方式干预</h4>
+                    <p><strong>饮食调整:</strong> 立即开始减少高盐（如咸菜、加工食品）、高脂（如油炸食品、肥肉）和高糖（如含糖饮料、甜点）食物的摄入。增加蔬菜、全谷物和优质蛋白的比例。</p>
+                    <p><strong>规律运动:</strong> 从本周起，尝试每周进行至少150分钟的中等强度运动，如快走、慢跑或游泳。</p>
+                     <p><strong>体重管理:</strong> 控制体重是改善所有代谢指标的核心。通过健康饮食和规律运动，设定一个切实可行的减重目标。</p>
+                </div>
+                 <div class="suggestion-section">
+                    <h4>定期随访监测</h4>
+                    <p>为了持续追踪您的健康状况并评估干预效果，我们建议您定期监测血压，在3-6个月后优先复查血脂四项及糖化血红蛋白(HbA1c)，以评估核心指标的改善情况。同时，可在6-12个月后跟进检查肝肾功能与尿酸。此外，由于您存在高血压和高血脂风险，建议每年进行一次眼底检查以预防并发症。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 仅保留展开/收起功能
+        const expandButton = document.querySelector('.expand-button');
+        if (expandButton) {
+            expandButton.addEventListener('click', () => {
+                const list = document.querySelector('.indicator-list');
+                if (list) {
+                    list.classList.toggle('collapsed');
+                    expandButton.textContent = list.classList.contains('collapsed') ? '更多' : '收起';
+                }
+            });
+        }
+    });
+    </script>
+</body>
+</html>

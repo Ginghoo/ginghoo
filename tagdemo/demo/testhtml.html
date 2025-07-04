@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>灵动标签布局 Demo</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f5f5f5;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      color: #333333;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin: 16px 0;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      padding: 6px 12px;
+      background: #ffffff;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #666666;
+      border: 1px solid #e0e0e0;
+      transition: all 0.3s ease;
+    }
+
+    .tab:hover {
+      background: #f0f0f0;
+      border-color: #d0d0d0;
+    }
+
+    .tab.active {
+      background: #1976d2;
+      color: white;
+      border-color: #1976d2;
+      box-shadow: 0 0 10px rgba(25, 118, 210, 0.3);
+    }
+
+    .container {
+      position: relative;
+      width: 300px;
+      height: 500px;
+      filter: drop-shadow(0 0 20px rgba(0, 0, 0, 0.1));
+    }
+
+    /* SVG连线样式 */
+    .connection-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .connection-line {
+      fill: none;
+      stroke-width: 2;
+      opacity: 0.6;
+      transition: all 0.3s ease;
+      filter: drop-shadow(0 1px 3px rgba(0,0,0,0.2));
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+
+    .connection-line.high {
+      stroke: #ff4444;
+      stroke-width: 3;
+      opacity: 0.8;
+    }
+
+    .connection-line.medium {
+      stroke: #ff9800;
+      stroke-width: 2.5;
+      opacity: 0.7;
+    }
+
+    .connection-line.low {
+      stroke: #888888;
+      stroke-width: 2;
+      opacity: 0.6;
+    }
+
+    .connection-line.active {
+      opacity: 1;
+      stroke-width: 4;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+    }
+
+    /* 连接点样式 */
+    .connection-point {
+      fill: currentColor;
+      opacity: 0.8;
+      transition: all 0.3s ease;
+    }
+
+    .connection-point.active {
+      opacity: 1;
+      r: 6;
+    }
+
+    /* 人体部位指示点 */
+    .body-point {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.8);
+      border: 2px solid #333;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+
+    .body-point.active {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.2);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    }
+
+    .avatar {
+      width: 150px;
+      height: 500px;
+      background-image: url('./image.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      border-radius: 16px;
+      margin: 0 auto;
+    }
+
+    .tag {
+      position: absolute;
+      padding: 6px 12px;
+      border-radius: 16px;
+      color: white;
+      font-weight: bold;
+      animation: floatIn 0.6s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      transition: transform 0.2s ease;
+      max-width: 120px;
+      white-space: nowrap;
+    }
+
+    .tag.left-align {
+      text-align: center;
+    }
+
+    .tag.right-align {
+      text-align: center;
+    }
+
+    .tag:hover {
+      transform: scale(1.05) translateY(-2px);
+      cursor: pointer;
+      filter: brightness(1.2) saturate(1.1);
+    }
+
+    .tag.high:hover {
+      box-shadow: 0 8px 25px rgba(255, 68, 68, 0.4);
+    }
+
+    .tag.medium:hover {
+      box-shadow: 0 8px 20px rgba(255, 152, 0, 0.3);
+    }
+
+    .tag.low:hover {
+      box-shadow: 0 6px 15px rgba(102, 102, 102, 0.3);
+    }
+
+    /* 浮动动画 */
+    .tag.floating {
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-5px); }
+    }
+
+    /* 高风险标签的复合动画 */
+    .tag.high.floating.pulsing {
+      animation: float var(--float-duration, 2.5s) ease-in-out infinite;
+    }
+
+    .tag.high.floating.pulsing::after {
+      animation: pulse var(--pulse-duration, 1.8s) ease-out infinite;
+    }
+
+    /* 呼吸效果 */
+    .tag.breathing {
+      animation: breathe 2s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 0.8; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.02); }
+    }
+
+    /* 脉冲效果 */
+    .tag.pulsing::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: 16px;
+      background: inherit;
+      opacity: 0.6;
+      animation: pulse 1.5s ease-out infinite;
+      z-index: -1;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 0.6; }
+      100% { transform: scale(1.2); opacity: 0; }
+    }
+
+    .high {
+      font-size: 18px;
+      background: linear-gradient(135deg, #ff4444, #cc0000);
+      border: 1px solid #ff6666;
+      box-shadow: 0 0 15px rgba(255, 68, 68, 0.3);
+    }
+
+    .medium {
+      font-size: 16px;
+      background: linear-gradient(135deg, #ff9800, #e65100);
+      border: 1px solid #ffab40;
+      box-shadow: 0 0 10px rgba(255, 152, 0, 0.2);
+    }
+
+    .low {
+      font-size: 14px;
+      background: linear-gradient(135deg, #6e6e6e, #5a5a5a);
+      border: 1px solid #888888;
+      box-shadow: 0 0 8px rgba(102, 102, 102, 0.3);
+    }
+
+    @keyframes floatIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* 弹窗样式 */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+      pointer-events: none;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .modal-content {
+      position: absolute;
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 400px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-origin: center center;
+    }
+
+    /* 弹窗样式 */
+    .modal-content {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(145deg, #ffffff, #f8f8f8);
+      border: 1px solid #e0e0e0;
+      border-radius: 20px;
+      padding: 24px;
+      max-width: 400px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+      transform: translate(-50%, -50%) scale(0.8);
+      transition: transform 0.3s ease;
+    }
+
+    .modal-overlay.show .modal-content {
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .modal-title {
+      font-size: 24px;
+      font-weight: bold;
+      color: #333333;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #666666;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+      background-color: #f0f0f0;
+      color: #333333;
+    }
+
+    .modal-subtitle {
+      color: #666666;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    .modal-description {
+      color: #555555;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .modal-metrics {
+      background: linear-gradient(145deg, #f8f8f8, #f0f0f0);
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .modal-metrics-title {
+      font-weight: bold;
+      margin-bottom: 16px;
+      color: #333333;
+    }
+
+    .metric-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .metric-item:last-child {
+      border-bottom: none;
+    }
+
+    .metric-label {
+      color: #555555;
+    }
+
+    .metric-reference {
+      font-size: 12px;
+      color: #777777;
+    }
+
+    .metric-value {
+      font-weight: bold;
+      color: #333333;
+    }
+
+    .metric-arrow {
+      color: #ff4444;
+      margin-right: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="tabs" id="tabBar"></div>
+  <div class="container">
+    <div class="avatar"></div>
+    <svg class="connection-svg" id="connectionSvg">
+      <!-- 连线将在这里动态生成 -->
+    </svg>
+    <div id="bodyPoints"></div>
+    <div id="tagContainer"></div>
+  </div>
+
+  <!-- 弹窗 -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modalTitle">高血压</h2>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-subtitle">内容由 AI 生成，仅供参考</div>
+      <div class="modal-description" id="modalDescription">
+        详细描述内容
+      </div>
+      <div class="modal-metrics" id="modalMetrics">
+        <div class="modal-metrics-title">异常指标：</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 人体部位坐标映射（相对于150x500的avatar）
+    const bodyParts = {
+      head: { x: 75, y: 80 },      // 头部
+      heart: { x: 75, y: 160 },    // 心脏
+      liver: { x: 95, y: 200 },    // 肝脏（右侧）
+      kidney: { x: 55, y: 220 },   // 肾脏（左侧）
+      pancreas: { x: 75, y: 180 }, // 胰腺
+      stomach: { x: 65, y: 190 },  // 胃部
+      joints: { x: 75, y: 380 },   // 关节（膝盖）
+      waist: { x: 75, y: 260 },    // 腰部
+      neck: { x: 75, y: 110 },     // 颈部
+      abdomen: { x: 75, y: 240 }   // 腹部
+    };
+
+    const risks = [
+      { 
+        label: '高血压', 
+        level: 'high',
+        bodyPart: 'heart',
+        description: '您的血压读数 [145/95 mmHg] 已超出正常范围，达到了1级高血压的标准。这表明您的心脏泵血比正常情况更费力，血管长期承受着较大的压力。<br><br>长期高血压是引发心脏病、中风、肾脏损伤和眼底病变的最主要风险因素之一。',
+        metrics: [
+          { label: '血压', reference: '120 ~ 139 | 80 ~ 89', value: '150 / 98 mmHg', arrow: '↑' },
+          { label: 'BMI', reference: '18.5 ~ 23.9', value: '28 kg/m²', arrow: '↑' }
+        ]
+      },
+      { 
+        label: '高血脂', 
+        level: 'medium',
+        bodyPart: 'heart',
+        description: '您的血脂水平偏高，这可能增加动脉硬化和心血管疾病的风险。建议调整饮食结构，减少饱和脂肪摄入。',
+        metrics: [
+          { label: '总胆固醇', reference: '< 200 mg/dL', value: '240 mg/dL', arrow: '↑' },
+          { label: 'LDL胆固醇', reference: '< 100 mg/dL', value: '160 mg/dL', arrow: '↑' }
+        ]
+      },
+      { 
+        label: '脂肪肝', 
+        level: 'low',
+        bodyPart: 'liver',
+        description: '轻度脂肪肝通常可以通过生活方式改变来改善，如控制体重、规律运动和健康饮食。',
+        metrics: [
+          { label: '肝酶ALT', reference: '< 40 U/L', value: '55 U/L', arrow: '↑' }
+        ]
+      },
+      { 
+        label: '痛风', 
+        level: 'medium',
+        bodyPart: 'joints',
+        description: '尿酸水平偏高，可能导致痛风发作。建议减少高嘌呤食物摄入，多喝水。',
+        metrics: [
+          { label: '尿酸', reference: '3.5-7.2 mg/dL', value: '9.5 mg/dL', arrow: '↑' }
+        ]
+      },
+      { 
+        label: '糖尿病', 
+        level: 'high',
+        bodyPart: 'pancreas',
+        description: '血糖水平显著升高，已达到糖尿病诊断标准。需要立即开始血糖管理和生活方式干预。',
+        metrics: [
+          { label: '空腹血糖', reference: '70-100 mg/dL', value: '145 mg/dL', arrow: '↑' },
+          { label: '糖化血红蛋白', reference: '< 5.7%', value: '8.2%', arrow: '↑' }
+        ]
+      },
+      { 
+        label: '肥胖症', 
+        level: 'medium',
+        bodyPart: 'waist',
+        description: '体重超标，BMI达到肥胖范围。建议制定科学的减重计划。',
+        metrics: [
+          { label: 'BMI', reference: '18.5 ~ 23.9', value: '32.1 kg/m²', arrow: '↑' }
+        ]
+      },
+      { 
+        label: '高尿酸', 
+        level: 'low',
+        bodyPart: 'kidney',
+        description: '尿酸水平轻度偏高，注意饮食调节即可。',
+        metrics: [
+          { label: '尿酸', reference: '3.5-7.2 mg/dL', value: '7.8 mg/dL', arrow: '↑' }
+        ]
+      },
+      { 
+        label: '代谢综合征', 
+        level: 'high',
+        bodyPart: 'abdomen',
+        description: '多项代谢指标异常，显著增加心血管疾病风险。需要综合管理。',
+        metrics: [
+          { label: '腰围', reference: '< 90 cm', value: '105 cm', arrow: '↑' },
+          { label: '甘油三酯', reference: '< 150 mg/dL', value: '220 mg/dL', arrow: '↑' }
+        ]
+      },
+      { 
+        label: '脂肪瘤', 
+        level: 'low',
+        bodyPart: 'abdomen',
+        description: '良性脂肪组织增生，一般无需特殊处理，定期观察即可。',
+        metrics: []
+      },
+      { 
+        label: '动脉硬化', 
+        level: 'medium',
+        bodyPart: 'neck',
+        description: '血管弹性下降，增加心血管事件风险。建议控制血压、血脂。',
+        metrics: [
+          { label: '颈动脉内膜厚度', reference: '< 0.9 mm', value: '1.2 mm', arrow: '↑' }
+        ]
+      }
+    ];
+
+    const tabBar = document.getElementById('tabBar');
+    const tagContainer = document.getElementById('tagContainer');
+    const connectionSvg = document.getElementById('connectionSvg');
+    const bodyPointsContainer = document.getElementById('bodyPoints');
+
+    function renderTabs() {
+      for (let i = 1; i <= 10; i++) {
+        const tab = document.createElement('div');
+        tab.className = 'tab';
+        tab.textContent = `${i} 个标签`;
+        tab.onclick = () => {
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          renderTags(i);
+        };
+        tabBar.appendChild(tab);
+      }
+    }
+
+    function renderTags(count) {
+      tagContainer.innerHTML = '';
+      connectionSvg.innerHTML = '';
+      bodyPointsContainer.innerHTML = '';
+      
+      const centerX = 150; // center of container
+      const centerY = 250; // center of avatar (500px height)
+      const currentRisks = [];
+
+      // 先收集当前要显示的风险数据
+      const currentRiskData = [];
+      for (let i = 0; i < count && i < risks.length; i++) {
+        currentRiskData.push(risks[i]);
+      }
+
+      // 智能分组：根据身体部位位置决定左右分布
+      const leftTags = [];
+      const rightTags = [];
+      
+      currentRiskData.forEach((risk, index) => {
+        const bodyPart = bodyParts[risk.bodyPart];
+        if (bodyPart) {
+          // 根据身体部位的X坐标决定标签放在左边还是右边
+          // 如果身体部位在中心左侧或中心，放左边；右侧放右边
+          if (bodyPart.x <= 75) {
+            leftTags.push({ risk, originalIndex: index });
+          } else {
+            rightTags.push({ risk, originalIndex: index });
+          }
+        } else {
+          // 默认放左边
+          leftTags.push({ risk, originalIndex: index });
+        }
+      });
+
+      // 按Y坐标排序，让标签位置更合理
+      leftTags.sort((a, b) => {
+        const bodyPartA = bodyParts[a.risk.bodyPart];
+        const bodyPartB = bodyParts[b.risk.bodyPart];
+        return (bodyPartA?.y || 250) - (bodyPartB?.y || 250);
+      });
+      
+      rightTags.sort((a, b) => {
+        const bodyPartA = bodyParts[a.risk.bodyPart];
+        const bodyPartB = bodyParts[b.risk.bodyPart];
+        return (bodyPartA?.y || 250) - (bodyPartB?.y || 250);
+      });
+
+      // 生成标签
+      [...leftTags, ...rightTags].forEach((item, displayIndex) => {
+        const { risk, originalIndex } = item;
+        const isLeft = displayIndex < leftTags.length;
+        const groupIndex = isLeft ? displayIndex : displayIndex - leftTags.length;
+        const groupSize = isLeft ? leftTags.length : rightTags.length;
+        
+        const tag = document.createElement('div');
+        tag.className = `tag ${risk.level} ${isLeft ? 'left-align' : 'right-align'}`;
+        tag.textContent = risk.label;
+        tag.dataset.riskIndex = originalIndex;
+
+        // 初始位置在中心
+        tag.style.left = `${centerX}px`;
+        tag.style.top = `${centerY}px`;
+        tag.style.opacity = '0';
+        tag.style.transition = 'left 0.6s ease, top 0.6s ease, opacity 0.6s ease';
+
+        tagContainer.appendChild(tag);
+
+        // 强制渲染以获取标签宽度
+        const rect = tag.getBoundingClientRect();
+        const tagWidth = rect.width;
+
+        // 计算目标位置 - 根据身体部位位置调整
+        const bodyPart = bodyParts[risk.bodyPart];
+        let targetY = centerY;
+        
+        if (bodyPart) {
+          // 让标签Y位置接近对应的身体部位，但保持一定间距
+          const verticalOffset = 40; // 垂直间距
+          const baseY = bodyPart.y;
+          
+          // 如果同一侧有多个标签，需要错开
+          if (groupSize > 1) {
+            const spacing = Math.min(50, 300 / groupSize); // 动态间距
+            const startOffset = -(groupSize - 1) * spacing / 2;
+            targetY = baseY + startOffset + groupIndex * spacing;
+          } else {
+            targetY = baseY;
+          }
+          
+          // 确保标签不会超出容器范围
+          targetY = Math.max(20, Math.min(480, targetY));
+        }
+
+        // 水平位置：缩小与人体的距离
+        const minDistance = 25; // 最小距离
+        const targetX = isLeft ? 
+          centerX - 75 - minDistance - tagWidth : // 左侧：人体左边缘 - 最小距离 - 标签宽度
+          centerX + 75 + minDistance; // 右侧：人体右边缘 + 最小距离
+
+        // 保存标签信息用于连线
+        currentRisks.push({
+          risk: risk,
+          element: tag,
+          x: targetX,
+          y: targetY,
+          index: originalIndex,
+          isLeft: isLeft
+        });
+
+        // 保存原始内容
+        tag.dataset.originalContent = tag.innerHTML;
+        
+        // 添加随机动画效果
+        addRandomAnimation(tag, originalIndex);
+        
+        // 添加增强的交互事件
+        addEnhancedInteractiveEffects(tag, originalIndex);
+        
+        // 添加点击事件
+        tag.addEventListener('click', () => openModal(risk, tag));
+
+        setTimeout(() => {
+          tag.style.left = `${targetX}px`;
+          tag.style.top = `${targetY}px`;
+          tag.style.opacity = '1';
+        }, 0);
+      });
+
+      // 延迟生成连线，等待标签动画完成
+      setTimeout(() => {
+        createConnections(currentRisks);
+        createBodyPoints(currentRisks);
+      }, 800);
+    }
+
+    // 添加随机动画效果
+    function addRandomAnimation(tag, index) {
+      // 统一延迟，按位置顺序启动，更有序
+      const delay = index * 0.2; // 每个标签间隔0.2秒
+      
+      setTimeout(() => {
+        if (tag.classList.contains('high')) {
+          // 高风险标签同时使用脉冲和浮动效果
+          tag.classList.add('pulsing', 'floating');
+          // 设置不同的动画时长，形成复合效果
+          tag.style.setProperty('--pulse-duration', '1.8s');
+          tag.style.setProperty('--float-duration', '2.5s');
+        } else {
+          // 中低风险标签使用浮动效果
+          tag.classList.add('floating');
+          
+          if (tag.classList.contains('medium')) {
+            tag.style.animationDuration = '3s';
+          } else {
+            tag.style.animationDuration = '3.5s';
+          }
+        }
+      }, delay * 1000);
+    }
+
+    // 生成SVG连线
+    function createConnections(currentRisks) {
+      currentRisks.forEach((item, index) => {
+        const { risk, x, y, isLeft } = item;
+        const bodyPart = bodyParts[risk.bodyPart];
+        if (!bodyPart) return;
+
+        // 计算连线起点和终点
+        const tagWidth = item.element.offsetWidth || 120; // 获取实际标签宽度
+        const tagCenterX = isLeft ? x + tagWidth : x; // 左侧标签从右边缘开始，右侧从左边缘开始
+        const tagCenterY = y + 15; // 标签中心高度
+        const bodyX = bodyPart.x;
+        const bodyY = bodyPart.y;
+
+        // 计算L形连线的中间转折点
+        // 统一的转折线位置：在人体边缘附近
+        const intermediateX = isLeft ? 75 - 20 : 75 + 20; // 左侧在人体中心左边20px，右侧在人体中心右边20px
+        
+        // 创建L形路径：标签 -> 水平到转折线 -> 垂直到身体部位
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M ${tagCenterX} ${tagCenterY} L ${intermediateX} ${tagCenterY} L ${bodyX} ${bodyY}`);
+        path.className = `connection-line ${risk.level}`;
+        path.dataset.riskIndex = item.index;
+
+        // 添加动画效果
+        const pathLength = path.getTotalLength();
+        path.style.strokeDasharray = pathLength;
+        path.style.strokeDashoffset = pathLength;
+        path.style.animation = `drawLine 1s ease-out ${index * 0.15}s forwards`;
+
+        connectionSvg.appendChild(path);
+      });
+
+      // 添加连线绘制动画（只添加一次）
+      if (!document.querySelector('#drawLineAnimation')) {
+        const style = document.createElement('style');
+        style.id = 'drawLineAnimation';
+        style.textContent = `
+          @keyframes drawLine {
+            to {
+              stroke-dashoffset: 0;
+            }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    }
+
+    // 生成身体部位指示点
+    function createBodyPoints(currentRisks) {
+      const usedBodyParts = new Set();
+      
+      currentRisks.forEach((item, index) => {
+        const { risk } = item;
+        const bodyPart = bodyParts[risk.bodyPart];
+        if (!bodyPart || usedBodyParts.has(risk.bodyPart)) return;
+
+        usedBodyParts.add(risk.bodyPart);
+
+        const point = document.createElement('div');
+        point.className = 'body-point';
+        point.style.left = `${bodyPart.x}px`;
+        point.style.top = `${bodyPart.y}px`;
+        point.dataset.bodyPart = risk.bodyPart;
+        point.dataset.riskLevel = risk.level;
+
+        // 根据风险等级设置颜色
+        if (risk.level === 'high') {
+          point.style.borderColor = '#ff4444';
+          point.style.background = 'rgba(255, 68, 68, 0.8)';
+        } else if (risk.level === 'medium') {
+          point.style.borderColor = '#ff9800';
+          point.style.background = 'rgba(255, 152, 0, 0.8)';
+        } else {
+          point.style.borderColor = '#888888';
+          point.style.background = 'rgba(136, 136, 136, 0.8)';
+        }
+
+        // 延迟显示指示点
+        setTimeout(() => {
+          point.classList.add('active');
+        }, 1000 + index * 100);
+
+        bodyPointsContainer.appendChild(point);
+      });
+    }
+
+    // 增强的交互效果
+    function addEnhancedInteractiveEffects(tag, riskIndex) {
+      // 鼠标进入时的效果
+      tag.addEventListener('mouseenter', () => {
+        // 暂停当前动画
+        tag.style.animationPlayState = 'paused';
+        
+        // 添加磁力效果
+        tag.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+        tag.style.transform = 'scale(1.1) translateY(-8px) rotate(2deg)';
+        tag.style.zIndex = '100';
+
+        // 高亮对应的连线
+        const connectionLine = document.querySelector(`[data-risk-index="${riskIndex}"]`);
+        if (connectionLine) {
+          connectionLine.classList.add('active');
+        }
+
+        // 高亮对应的身体部位
+        const risk = risks[riskIndex];
+        const bodyPoint = document.querySelector(`[data-body-part="${risk.bodyPart}"]`);
+        if (bodyPoint) {
+          bodyPoint.style.transform = 'translate(-50%, -50%) scale(1.5)';
+          bodyPoint.style.boxShadow = '0 0 20px currentColor';
+        }
+        
+        // 影响周围标签
+        const allTags = document.querySelectorAll('.tag');
+        allTags.forEach(otherTag => {
+          if (otherTag !== tag) {
+            const distance = getDistance(tag, otherTag);
+            if (distance < 150) {
+              const repelForce = Math.max(0, (150 - distance) / 150);
+              const angle = getAngle(tag, otherTag);
+              const pushX = Math.cos(angle) * repelForce * 10;
+              const pushY = Math.sin(angle) * repelForce * 10;
+              
+              otherTag.style.transition = 'transform 0.3s ease';
+              otherTag.style.transform = `translate(${pushX}px, ${pushY}px) scale(${1 - repelForce * 0.1})`;
+            }
+          }
+        });
+      });
+      
+      // 鼠标离开时恢复
+      tag.addEventListener('mouseleave', () => {
+        tag.style.animationPlayState = 'running';
+        tag.style.transform = '';
+        tag.style.zIndex = '';
+
+        // 取消高亮连线
+        const connectionLine = document.querySelector(`[data-risk-index="${riskIndex}"]`);
+        if (connectionLine) {
+          connectionLine.classList.remove('active');
+        }
+
+        // 取消高亮身体部位
+        const risk = risks[riskIndex];
+        const bodyPoint = document.querySelector(`[data-body-part="${risk.bodyPart}"]`);
+        if (bodyPoint) {
+          bodyPoint.style.transform = 'translate(-50%, -50%) scale(1.2)';
+          bodyPoint.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.5)';
+        }
+        
+        // 恢复周围标签
+        const allTags = document.querySelectorAll('.tag');
+        allTags.forEach(otherTag => {
+          if (otherTag !== tag) {
+            otherTag.style.transform = '';
+          }
+        });
+      });
+    }
+
+    // 计算两个元素间的距离
+    function getDistance(el1, el2) {
+      const rect1 = el1.getBoundingClientRect();
+      const rect2 = el2.getBoundingClientRect();
+      const centerX1 = rect1.left + rect1.width / 2;
+      const centerY1 = rect1.top + rect1.height / 2;
+      const centerX2 = rect2.left + rect2.width / 2;
+      const centerY2 = rect2.top + rect2.height / 2;
+      
+      return Math.sqrt(Math.pow(centerX2 - centerX1, 2) + Math.pow(centerY2 - centerY1, 2));
+    }
+
+    // 计算两个元素间的角度
+    function getAngle(el1, el2) {
+      const rect1 = el1.getBoundingClientRect();
+      const rect2 = el2.getBoundingClientRect();
+      const centerX1 = rect1.left + rect1.width / 2;
+      const centerY1 = rect1.top + rect1.height / 2;
+      const centerX2 = rect2.left + rect2.width / 2;
+      const centerY2 = rect2.top + rect2.height / 2;
+      
+      return Math.atan2(centerY2 - centerY1, centerX2 - centerX1);
+    }
+
+    // 弹窗控制函数
+    function openModal(riskData, clickedTag) {
+      const modal = document.getElementById('modal');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalDescription = document.getElementById('modalDescription');
+      const modalMetrics = document.getElementById('modalMetrics');
+      
+      // 设置弹窗内容
+      modalTitle.textContent = riskData.label;
+      modalDescription.innerHTML = riskData.description;
+      
+      // 更新指标数据
+      const metricsHtml = riskData.metrics.length > 0 ? `
+        <div class="modal-metrics-title">异常指标：</div>
+        ${riskData.metrics.map(metric => `
+          <div class="metric-item">
+            <div>
+              <div class="metric-label">${metric.label}</div>
+              <div class="metric-reference">参考值：${metric.reference}</div>
+            </div>
+            <div class="metric-value">
+              <span class="metric-arrow">${metric.arrow}</span>${metric.value}
+            </div>
+          </div>
+        `).join('')}
+      ` : `
+        <div class="modal-metrics-title">暂无异常指标数据</div>
+      `;
+      
+      modalMetrics.innerHTML = metricsHtml;
+      modal.classList.add('show');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('modal');
+      modal.classList.remove('show');
+    }
+
+    // 点击遮罩层关闭弹窗
+    document.getElementById('modal').addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-overlay')) {
+        closeModal();
+      }
+    });
+
+    renderTabs();
+    renderTags(4);
+    tabBar.children[3].classList.add('active');
+  </script>
+</body>
+</html>

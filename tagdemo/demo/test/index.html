@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>健康风险分析</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg-color: #ffffff;
+            --char-area-height: 60vh;
+            --text-color: #333;
+            --subtext-color: #888;
+            --transition-duration: 0.6s;
+            --transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+            background-color: var(--bg-color);
+            overflow: hidden;
+        }
+
+        .screen-container {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .main-content {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .character-area {
+            height: var(--char-area-height);
+            min-height: 450px;
+            width: 100%;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        
+        .character-model {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .character-video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            z-index: 20;
+            pointer-events: none;
+        }
+        
+        .tags-iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            pointer-events: none;
+            z-index: 25;
+        }
+        
+        .top-tabs { 
+            position: sticky;
+            top: 0;
+            display: flex; 
+            justify-content: center; 
+            padding: 15px; 
+            gap: 20px; 
+            z-index: 70; 
+            background-color: var(--bg-color);
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .top-tabs button { padding: 6px 14px; border: none; background: transparent; font-size: 16px; color: var(--subtext-color); cursor: pointer; transition: color 0.3s, font-weight 0.3s; }
+        .top-tabs button.active { color: var(--text-color); font-weight: 600; }
+        
+        .content-iframe {
+            width: 100%;
+            height: 120vh;
+            border: none;
+            display: block;
+        }
+
+        .overlay-card {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 65vh;
+            background-color: var(--card-bg-color);
+            border-top-left-radius: 24px;
+            border-top-right-radius: 24px;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+            z-index: 80;
+            transform: translateY(0);
+            transition: transform var(--transition-duration) var(--transition-timing);
+            cursor: grab;
+        }
+        .overlay-card:active {
+             cursor: grabbing;
+        }
+        .overlay-card.is-down {
+            transform: translateY(calc(100% - 40px));
+        }
+        .grabber {
+            width: 40px;
+            height: 5px;
+            background-color: #e0e0e0;
+            border-radius: 2.5px;
+            margin: 12px auto 0;
+        }
+        .ai-analyze-btn {
+            position: absolute;
+            top: 35vh;
+            left: 16px;
+            transform: translateY(-50%);
+            z-index: 90;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: 500;
+            background-color: #fff;
+            color: var(--text-color);
+            border: none;
+            border-radius: 99px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            cursor: pointer;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .ai-analyze-btn.is-hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="screen-container">
+        <div class="main-content">
+            <div class="top-tabs">
+                <button class="tab-button active" data-count="8">王秀英</button>
+                <button class="tab-button" data-count="5">张小伟</button>
+                <button class="tab-button" data-count="3">张建国</button>
+                <button class="tab-button" data-count="1">李静</button>
+            </div>
+
+            <div class="character-area">
+                <div class="character-model">
+                    <video src="character.mp4" class="character-video" muted playsinline preload="auto"></video>
+                </div>
+                <iframe src="tags.html" class="tags-iframe" title="风险标签模块"></iframe>
+            </div>
+
+            <iframe src="content.html" class="content-iframe" title="健康分析内容"></iframe>
+        </div>
+
+        <div class="overlay-card">
+            <div class="grabber"></div>
+        </div>
+        <div class="ai-analyze-btn">✦ AI分析</div>
+
+    </div>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const overlayCard = document.querySelector('.overlay-card');
+        const aiAnalyzeBtn = document.querySelector('.ai-analyze-btn');
+        const characterVideo = document.querySelector('.character-video');
+        const tagsIframe = document.querySelector('.tags-iframe');
+        
+        let isDragging = false;
+        let startY, startCardY;
+        let cardMaxY, cardMinY;
+        let animationFrameId;
+        
+        function showAnalysis(isAnimated = true) {
+            aiAnalyzeBtn.classList.add('is-hidden');
+            
+            if (isAnimated) {
+                characterVideo.play().catch(e => console.error("Video play failed", e));
+                
+                characterVideo.addEventListener('ended', () => {
+                    if(overlayCard.classList.contains('is-down')) {
+                        const activeTab = document.querySelector('.tab-button.active');
+                        const count = parseInt(activeTab.dataset.count, 10);
+                        tagsIframe.contentWindow.postMessage({ action: 'show', count: count }, '*');
+                    }
+                }, { once: true });
+            } else {
+                const activeTab = document.querySelector('.tab-button.active');
+                const count = parseInt(activeTab.dataset.count, 10);
+                tagsIframe.contentWindow.postMessage({ action: 'show', count: count }, '*');
+            }
+        }
+
+        function hideAnalysis() {
+            aiAnalyzeBtn.classList.remove('is-hidden');
+            characterVideo.currentTime = 0;
+            characterVideo.pause();
+            tagsIframe.contentWindow.postMessage({ action: 'hide' }, '*');
+        }
+
+        function handleCardMove(y) {
+            const deltaY = y - startY;
+            const newCardY = Math.max(cardMinY, Math.min(cardMaxY, startCardY + deltaY));
+            const progress = (newCardY - cardMinY) / (cardMaxY - cardMinY);
+            
+            overlayCard.style.transform = `translateY(${newCardY}px)`;
+            updateVideoProgress(1 - progress);
+        }
+
+        function snapCard() {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            overlayCard.style.transition = '';
+            const currentTransformY = new DOMMatrix(window.getComputedStyle(overlayCard).transform).m42;
+            const progress = (currentTransformY - cardMinY) / (cardMaxY - cardMinY);
+
+            if (progress > 0.5) {
+                animateCardTo(cardMaxY, true);
+            } else {
+                animateCardTo(cardMinY, false);
+            }
+        }
+
+        function animateCardTo(targetY, isOpening) {
+            const startY = new DOMMatrix(window.getComputedStyle(overlayCard).transform).m42;
+            const distance = targetY - startY;
+            if (Math.abs(distance) < 1) {
+                if (isOpening) showAnalysis(false); else hideAnalysis();
+                return;
+            }
+
+            const duration = 400;
+            let start = null;
+
+            function step(timestamp) {
+                if (!start) start = timestamp;
+                const elapsed = timestamp - start;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                const newY = startY + distance * progress;
+                overlayCard.style.transform = `translateY(${newY}px)`;
+                
+                const cardProgress = (newY - cardMinY) / (cardMaxY - cardMinY);
+                updateVideoProgress(1 - cardProgress);
+
+                if (progress < 1) {
+                    animationFrameId = requestAnimationFrame(step);
+                } else {
+                    if (isOpening) {
+                         overlayCard.classList.add('is-down');
+                         showAnalysis(true);
+                    } else {
+                         overlayCard.classList.remove('is-down');
+                         hideAnalysis();
+                    }
+                }
+            }
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = requestAnimationFrame(step);
+        }
+
+        function updateVideoProgress(progress) {
+            if (!characterVideo || isNaN(characterVideo.duration)) return;
+            characterVideo.currentTime = characterVideo.duration * progress;
+        }
+
+        function startDrag(e) {
+            isDragging = true;
+            startY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            overlayCard.style.transition = 'none';
+            const currentTransform = new DOMMatrix(window.getComputedStyle(overlayCard).transform);
+            startCardY = currentTransform.m42;
+            
+            cardMinY = window.innerHeight - overlayCard.offsetHeight;
+            cardMaxY = window.innerHeight - 40;
+            
+            cancelAnimationFrame(animationFrameId);
+        }
+
+        function onDrag(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            handleCardMove(clientY);
+        }
+
+        overlayCard.addEventListener('mousedown', startDrag);
+        window.addEventListener('mousemove', onDrag);
+        window.addEventListener('mouseup', snapCard);
+
+        overlayCard.addEventListener('touchstart', startDrag, { passive: false });
+        window.addEventListener('touchmove', onDrag, { passive: false });
+        window.addEventListener('touchend', snapCard);
+
+        aiAnalyzeBtn.addEventListener('click', () => {
+             const targetY = window.innerHeight - 40;
+             animateCardTo(targetY, true);
+        });
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                if (overlayCard.classList.contains('is-down')) {
+                    const count = parseInt(button.dataset.count, 10);
+                    tagsIframe.contentWindow.postMessage({ action: 'show', count: count }, '*');
+                }
+            });
+        });
+
+        window.addEventListener('resize', () => {
+            if (overlayCard.classList.contains('is-down')) {
+                const activeTab = document.querySelector('.tab-button.active');
+                if(activeTab) {
+                    const count = parseInt(activeTab.dataset.count, 10);
+                    tagsIframe.contentWindow.postMessage({ action: 'show', count: count }, '*');
+                }
+            }
+        });
+        
+        characterVideo.addEventListener('loadedmetadata', () => {
+            characterVideo.currentTime = 0;
+        });
+    });
+    </script>
+</body>
+</html>
